@@ -82,9 +82,9 @@ function setLocalVideo(stream){
   let localVideo = document.querySelector('#localVideo');
   localVideo.srcObject = stream;
 }
-
-/*********** SOCKET FUNCTIONS
- */
+///// Clicking the ENTER button starts everything.  The UI is pretty bad, there is no
+//indication anything is working or connecting.  could add that but didn't.  Just know
+//when you click enter, server is trying to get you to other peers in the room
 const startButton = document.getElementById('submit');
 
 //once we get input from user, set room and pass then connect to server
@@ -110,10 +110,6 @@ startButton.onclick = (() =>{
 //Start our connection to the server
 socket.on('connect',(msg)=>{
   console.log("CONNECTED");
-  
-  //room is hardcoded atm, so this should always run
-  //TODO - add a user input for room to join existing room
-  
 });
 
 //response back if Client joined a room with other clients
@@ -121,10 +117,8 @@ socket.on('connect',(msg)=>{
 // 'offer' client
 socket.on("newRoomMember", (room,ids) => {
   //ids an array of socket.IDs of other members
-
   //loop through all the room members and send offer to connect
   for (var socketID of ids){
-    console.log('for loop connection offer to:'+ socketID)
     //make an offer to one of the clients in the room
     const remotePeerConnection = createPeerConnectionOffer(socketID);
 
@@ -134,7 +128,6 @@ socket.on("newRoomMember", (room,ids) => {
     //create handler for the .onicecandidate method of RTCPeerConnection instance 
     remotePeerConnection.onicecandidate = event => {
         if (event.candidate) {
-          console.log('event candidate received, send back to id: '+socketID);
           socket.emit("candidate", socketID, event.candidate);
         }
       };
@@ -142,7 +135,6 @@ socket.on("newRoomMember", (room,ids) => {
 });
 
 async function addMediaTrackToRemotePeerConnection(remotePeerConnection){
-  //const remotePeerConnection = new RTCPeerConnection(iceConfig);
 //IMPORTANT - everything has to wait for userMedia, so it's all chained to that promise .then()
  //https://stackoverflow.com/questions/38036552/rtcpeerconnection-onicecandidate-not-fire
  const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -157,7 +149,7 @@ async function addMediaTrackToRemotePeerConnection(remotePeerConnection){
 function createPeerConnectionOffer (RemoteSocketID){
   //iceConfig global 
   const remotePeerConnection = new RTCPeerConnection(iceConfig);
-//IMPORTANT - everything has to wait for userMedia
+  //IMPORTANT - everything has to wait for userMedia
  addMediaTrackToRemotePeerConnection(remotePeerConnection)
  .then((rpc) =>{
     //Now that the rpc 'remotePeerConnection' has our media tracks associated, we can start the offer process.
@@ -168,14 +160,12 @@ function createPeerConnectionOffer (RemoteSocketID){
         return sdp;
       })
       .then((sdp) => {
-          console.log('sending offer to: '+RemoteSocketID, sdp);
           socket.emit("offer", RemoteSocketID, sdp);
         })
     })
  .catch(learnFromMistakes);
 
-
-    return remotePeerConnection;
+  return remotePeerConnection;
 }
 
 function createPeerConnectionAnswer (RemoteSocketID,description){
@@ -189,9 +179,8 @@ const remotePeerConnection = new RTCPeerConnection(iceConfig);
  .then(() => remotePeerConnection.createAnswer())
  //attach the local description to the rpc 
  .then(sdp => remotePeerConnection.setLocalDescription(sdp))
- //finally, add a way to signal the answer back
+ //finally, fire the answer back
  .then(() => {
-  console.log('sending answer: '+ remotePeerConnection.localDescription+ 'to id: '+id);
   socket.emit("answer", id, remotePeerConnection.localDescription);
   })
   .catch(learnFromMistakes);
@@ -213,8 +202,6 @@ function createRemoteVideoHTMLNode (id){
 }
 socket.on("offer", (id, description) => {
   //////// SO Similar to the createPeerConnectionOffer flow, should really combine in to a few single working functions
-
-  console.log('offer from: '+id, description);//show description object as json
 
   //create a video element to hold the remote stream
   createRemoteVideoHTMLNode (id);
@@ -239,13 +226,11 @@ socket.on("offer", (id, description) => {
       socket.emit("answer", id, remotePeerConnection.localDescription);
     });
 
-    //trying to fix issue with iphone, mannually add tracks to a MediaSource
+    //trying to fix issue with iphone, mannually add tracks to a MediaSource?
   remotePeerConnection.ontrack = event => {
     let remoteVideoElement = document.getElementById(id);
     //set the remote stream to our video html element
     remoteVideoElement.srcObject = event.streams[0];
-    //supposed to be set to autoplay, but need this to get going too for some clients
-    //remoteVideoElement.play();
   };
   remotePeerConnection.onicecandidate = event=>{
     if (event.candidate) {
@@ -259,7 +244,6 @@ socket.on("answer", (id, description) => {
    //create a video element to hold the remote stream
    createRemoteVideoHTMLNode (id);
 
-  //console.log( allPeerConnections[id]);
    allPeerConnections[id].setRemoteDescription(description)
 
   allPeerConnections[id].ontrack = event => {
@@ -267,8 +251,6 @@ socket.on("answer", (id, description) => {
     const remoteVideoElement = document.getElementById(id);
     //set the remote stream as the video source
     remoteVideoElement.srcObject = event.streams[0];
-    //autoplay should already be set, but need this to get going too for some clients
-    //remoteVideoElement.play();
   };
   allPeerConnections[id].onicecandidate = event => {
 
@@ -280,17 +262,17 @@ socket.on("answer", (id, description) => {
 
 
 socket.on("candidate", (id, candidate) => {
-  console.log('received candidate from: '+id);
   allPeerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
 });
 
-//debug helper for serverm
+//debug helper for server
 socket.on('log', function(msg) {
   //receive console.log() server messages - debug feature
   console.log('FROM SERVER LOG: '+msg);
 });
 
 socket.on('bye',(id)=>{
+  //when a client leaves a 'bye' is sent. remove their html video element and delete them from connections Obj
   let remoteVideoElement = document.getElementById(id);
   remoteVideoElement.remove();
   delete allPeerConnections[id];
@@ -315,6 +297,7 @@ window.addEventListener('beforeunload', function (e) {
   // the absence of a returnValue property on the event will guarantee the browser unload happens
   delete e['returnValue'];
 });
+
 //error message handler
 function learnFromMistakes(youFailed){
   console.log('so close, here is where it all went wrong:',youFailed)
