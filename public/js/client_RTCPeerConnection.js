@@ -90,7 +90,15 @@ const startButton = document.getElementById('submit');
 //once we get input from user, set room and pass then connect to server
 startButton.onclick = (() =>{  
   room = document.getElementById('room').value;
-  let password = document.getElementById('password').value;
+  /*
+  -- PASSWORDS --
+  technically everything is built and tested to use passwords
+  I hid the html element, commented out the getElementBy but gave it a value of 1234.  the server applies a default '1234' to all rooms
+  because this is a simple demo app not something for protection and entering room +pass 
+  was annoying
+  */
+
+  let password = '1234' //document.getElementById('password').value;
   console.log(room,password)
 
   if (room !== '') {
@@ -290,16 +298,16 @@ socket.on('bye',(id)=>{
 
 socket.on('wrong',()=>{
   let room = document.getElementById('room');
-  let pass = document.getElementById('password');
+  //let pass = document.getElementById('password');
   room.value = '';
-  password.value = '';
+  //pass.value = '';
 });
 
 socket.on('full',(room)=>{
   let rm = document.getElementById('room');
-  let pass = document.getElementById('password');
+  //let pass = document.getElementById('password');
   rm.value = room +' is full';
-  password.value = '';
+  //pass.value = '';
 });
 
 window.addEventListener('beforeunload', function (e) {
