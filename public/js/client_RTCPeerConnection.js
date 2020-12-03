@@ -24,14 +24,7 @@ https://shanetully.com/2014/09/a-dead-simple-webrtc-example/
 */
 
 'use strict';
-
-
-// Could prompt for room name, hardcode for now
-var room = 'chatRoom';
-// room = prompt('Enter room name:');
-
-var password = prompt('enter the room password:');
-
+let room = null;
 var socket = io.connect();
 
 //create the bilateral communication object, RTCpeerconnection
@@ -92,26 +85,34 @@ function setLocalVideo(stream){
 
 /*********** SOCKET FUNCTIONS
  */
+const startButton = document.getElementById('submit');
 
+//once we get input from user, set room and pass then connect to server
+startButton.onclick = (() =>{  
+  room = document.getElementById('room').value;
+  let password = document.getElementById('password').value;
+  console.log(room,password)
+
+  if (room !== '') {
+    socket.emit('create or join', room,password);
+    console.log('Asking server to create or join room: ', room);
+    }
+});
+
+//Start our connection to the server
 socket.on('connect',(msg)=>{
-	    console.log("CONNECTED");
-			
-      //room is hardcoded atm, so this should always run
-      //TODO - add a user input for room to join existing room
-      if (room !== '') {
-        socket.emit('create or join', room,password);
-        console.log('Asking server to create or join room: ', room);
-        }
-		});
-
+  console.log("CONNECTED");
+  
+  //room is hardcoded atm, so this should always run
+  //TODO - add a user input for room to join existing room
+  
+});
 
 //response back if Client joined a room with other clients
 //this will cause Client to start the RTCpeerconnection handshake they will be the
 // 'offer' client
 socket.on("newRoomMember", (room,ids) => {
-  //id an array of socket.IDs of other members
-  console.log(ids.length+' other members in room: '+room);
-  console.log(ids);
+  //ids an array of socket.IDs of other members
 
   //loop through all the room members and send offer to connect
   for (var socketID of ids){
@@ -194,6 +195,8 @@ function createRemoteVideoHTMLNode (id){
   const remoteVideo = document.createElement("video");
   //set it to autoplay video
   remoteVideo.autoplay = true;
+  //set the inline play
+  remoteVideo.setAttribute('playsinline','');
   //give it the socket id as an id so we can reference easily
   remoteVideo.setAttribute("id",id);
   //attach our remote video element to container, 
@@ -225,21 +228,18 @@ socket.on("offer", (id, description) => {
       )
     .then(sdp => remotePeerConnection.setLocalDescription(sdp))
     .then(() => {
-      console.log('sending answer: '+ remotePeerConnection.localDescription+ 'to id: '+id);
       socket.emit("answer", id, remotePeerConnection.localDescription);
     });
 
     //trying to fix issue with iphone, mannually add tracks to a MediaSource
   remotePeerConnection.ontrack = event => {
-    console.log('event');
-    console.log(event.streams[0]);
     let remoteVideoElement = document.getElementById(id);
     //set the remote stream to our video html element
     remoteVideoElement.srcObject = event.streams[0];
+    //supposed to be set to autoplay, but need this to get going too for some clients
+    //remoteVideoElement.play();
   };
   remotePeerConnection.onicecandidate = event=>{
-    console.log('received event');
-    console.log(event);
     if (event.candidate) {
        socket.emit("candidate", id, event.candidate);
     }
@@ -255,15 +255,15 @@ socket.on("answer", (id, description) => {
    allPeerConnections[id].setRemoteDescription(description)
 
   allPeerConnections[id].ontrack = event => {
-    //const remoteVideo = document.querySelector('#remoteVideo');
-    let remoteVideoElement = document.getElementById(id);
-    console.log('event');
-    console.log(event);
+    //remoteVideo html element
+    const remoteVideoElement = document.getElementById(id);
+    //set the remote stream as the video source
     remoteVideoElement.srcObject = event.streams[0];
+    //autoplay should already be set, but need this to get going too for some clients
+    //remoteVideoElement.play();
   };
   allPeerConnections[id].onicecandidate = event => {
-    console.log('received event');
-    console.log(event);
+
     if (event.candidate) {
       socket.emit("candidate", id, event.candidate);
     }
@@ -288,11 +288,25 @@ socket.on('bye',(id)=>{
   delete allPeerConnections[id];
 });
 
+socket.on('wrong',()=>{
+  let room = document.getElementById('room');
+  let pass = document.getElementById('password');
+  room.value = '';
+  password.value = '';
+});
 
-window.onbeforeunload = function() {
-  console.log('sending message bye');
+socket.on('full',(room)=>{
+  let rm = document.getElementById('room');
+  let pass = document.getElementById('password');
+  rm.value = room +' is full';
+  password.value = '';
+});
+
+window.addEventListener('beforeunload', function (e) {
   socket.emit('bye',room);
-};
+  // the absence of a returnValue property on the event will guarantee the browser unload happens
+  delete e['returnValue'];
+});
 //error message handler
 function learnFromMistakes(youFailed){
   console.log('so close, here is where it all went wrong:',youFailed)

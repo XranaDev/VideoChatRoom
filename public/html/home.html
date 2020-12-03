@@ -4,7 +4,7 @@
 -->
 <html>
   <head>
-    <title>USB Connector With Peer Video</title>
+    <title>Connect With Peer-Peer Video</title>
 
   </head>
   <style>
@@ -21,19 +21,21 @@
   <body>
     
     <video id="localVideo" autoplay muted playsinline></video><!-- no local sound -->
-    <!-- <video id="remoteVideo" autoplay playsinline></video> -->
+
     <div id="remoteVideoContainer">
       
     </div>
-    
-    <canvas id="canvas">Your browser does not support the THML canvas tag</canvas>
-  <!--  <script src="/public/js/socket.io.min.js"></script>-->
-  <script src="/node_modules/socket.io/client-dist/socket.io.js"></script>
-		<script src="/public/js/client_RTCPeerConnection.js"></script>
-		
+ 
 		 <div>
-      <button id="callButton">Call</button><!-- this doesn't do anything at the moment-->
+      <label for="room">Enter a Room name to Join or Create:</label><br>
+      <input type="text" id="room" name="room"><br>
+      <label for="password">Enter or set password for the room</label><br>
+      <input type="text" id="password" name="password"><br><br>
+      <input id="submit" type="submit" value="ENTER">
     </div>
-		
+    
+    <script src="/node_modules/socket.io/client-dist/socket.io.js"></script>
+    <script src="/public/js/client_RTCPeerConnection.js"></script>
+    
   </body>
 </html>

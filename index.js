@@ -184,27 +184,13 @@ socket.on('create or join', (room,password) =>{
         socket.emit('full', room);
       }
     }else{
+      socket.emit('wrong');
       log('wrong password for room:'+room)
     }
     
   });
 
 
-//This is probably going to be dropped, each time someone connects, they reach out to the other clients
-//may not be a need to 'ask' for other connected members
-socket.on('askForOtherRoomMembers',room=>{
-  //get all room members
-  let allRoomMembers = io.sockets.adapter.rooms.get(room);
-  //remove self from list
-  allRoomMembers.delete(socket.id);
-  //convert Set object to Array
-  let allRoomMembers_array = Array.from(allRoomMembers);
-  console.log('client: '+ allRoomMembers_array);
-  
-  //return a list of ALL socketIDs in the room
-  log('all clients in room: '+ allRoomMembers_array);
-  socket.emit('newRoomMember',room,allRoomMembers_array);
-});
 
 socket.on('offer',(id,offer)=>{
     //relay offer from Alice to Bob
@@ -225,8 +211,9 @@ socket.on('candidate',(id,candidate)=>{
      socket.to(id).emit("candidate", socket.id, candidate);
   });
   
-  socket.on('bye', room=>{
-    log('received bye from '+socket.id);
+  socket.on('bye', (room)=>{
+    log('received bye from '+socket.id+' in room' +room);
+    console.log('bye',socket.id)
     //tell everyone they left
     socket.to(room).emit('bye',socket.id)
   });
